@@ -1,0 +1,432 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable Hardened Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestampsCreate(data) {
+      return data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidTimestampsUpdate(data) {
+      return data.createdAt == existing().createdAt &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isBoundedString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    function isOptionalBoundedString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isStringList(val, maxItems) {
+      return val is list && val.size() <= maxItems && (val.size() == 0 || val[0] is string);
+    }
+
+    // Validation Helpers
+    function isValidSettings(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.schoolName, 2, 150) &&
+             isBoundedString(data.schoolAddress, 2, 250) &&
+             isBoundedString(data.academicSession, 2, 40) &&
+             isOptionalBoundedString(data, 'phone', 40) &&
+             isOptionalBoundedString(data, 'email', 120) &&
+             isOptionalBoundedString(data, 'affiliationNote', 200) &&
+             isOptionalBoundedString(data, 'receiptPrefix', 30) &&
+             isOptionalBoundedString(data, 'authorizedSignatory', 100) &&
+             (!('themeMode' in data) || data.themeMode in ['SYSTEM', 'LIGHT', 'DARK']) &&
+             isOptionalBoundedString(data, 'logoBase64', 80000);
+    }
+
+    function isValidSchoolClass(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.name, 1, 60) &&
+             isOptionalBoundedString(data, 'section', 20) &&
+             data.displayOrder is int && data.displayOrder >= 0 && data.displayOrder <= 1000 &&
+             data.monthlyFee is number && data.monthlyFee >= 0 && data.monthlyFee <= 1000000 &&
+             isOptionalBoundedString(data, 'classTeacherId', 128) &&
+             isOptionalBoundedString(data, 'classTeacherName', 100);
+    }
+
+    function isValidClassSubject(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             isBoundedString(data.subjectName, 1, 80) &&
+             isOptionalBoundedString(data, 'teacherId', 128) &&
+             isOptionalBoundedString(data, 'teacherName', 100) &&
+             data.defaultMaxMarks is int && data.defaultMaxMarks >= 1 && data.defaultMaxMarks <= 1000;
+    }
+
+    function isValidTeacher(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.name, 1, 120) &&
+             isOptionalBoundedString(data, 'qualification', 120) &&
+             isBoundedString(data.mobile, 1, 30) &&
+             isOptionalBoundedString(data, 'address', 250) &&
+             isOptionalBoundedString(data, 'email', 120) &&
+             isOptionalBoundedString(data, 'joiningDate', 30) &&
+             isStringList(data.assignedClasses, 25) &&
+             isStringList(data.assignedSubjects, 25) &&
+             (!('salary' in data) || (data.salary is number && data.salary >= 0 && data.salary <= 10000000));
+    }
+
+    function isValidStudent(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.name, 1, 120) &&
+             isBoundedString(data.fatherName, 1, 120) &&
+             isOptionalBoundedString(data, 'motherName', 120) &&
+             isOptionalBoundedString(data, 'dob', 30) &&
+             (!('gender' in data) || data.gender in ['Male', 'Female', 'Other']) &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             isBoundedString(data.rollNumber, 1, 40) &&
+             isBoundedString(data.admissionNumber, 1, 50) &&
+             isBoundedString(data.mobile, 1, 30) &&
+             isOptionalBoundedString(data, 'address', 300) &&
+             isOptionalBoundedString(data, 'admissionDate', 30) &&
+             isOptionalBoundedString(data, 'previousSchool', 150) &&
+             isOptionalBoundedString(data, 'accountNumber', 60) &&
+             isOptionalBoundedString(data, 'photoBase64', 80000);
+    }
+
+    function isValidFeeRecord(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.studentId, 1, 128) &&
+             isBoundedString(data.studentName, 1, 120) &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             isOptionalBoundedString(data, 'rollNumber', 40) &&
+             isOptionalBoundedString(data, 'admissionNumber', 50) &&
+             isBoundedString(data.receiptNumber, 1, 60) &&
+             isStringList(data.feeMonths, 12) &&
+             isOptionalBoundedString(data, 'cycleLabel', 80) &&
+             data.totalAmount is number && data.totalAmount >= 0 && data.totalAmount <= 10000000 &&
+             data.paidAmount is number && data.paidAmount >= 0 && data.paidAmount <= 10000000 &&
+             data.remainingBalance is number && data.remainingBalance >= 0 && data.remainingBalance <= 10000000 &&
+             isBoundedString(data.paymentDate, 1, 30) &&
+             isOptionalBoundedString(data, 'paymentMode', 40) &&
+             data.status in ['PAID', 'PARTIAL', 'PENDING'] &&
+             isOptionalBoundedString(data, 'remarks', 250);
+    }
+
+    function isValidAttendance(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.studentId, 1, 128) &&
+             isBoundedString(data.studentName, 1, 120) &&
+             isOptionalBoundedString(data, 'rollNumber', 40) &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             isBoundedString(data.date, 8, 30) &&
+             isBoundedString(data.monthKey, 6, 20) &&
+             data.status in ['PRESENT', 'ABSENT', 'LEAVE'] &&
+             isOptionalBoundedString(data, 'remarks', 200);
+    }
+
+    function isValidExamination(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.name, 1, 120) &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             isBoundedString(data.academicSession, 2, 40) &&
+             isBoundedString(data.startDate, 1, 30) &&
+             isOptionalBoundedString(data, 'endDate', 30) &&
+             data.status in ['UPCOMING', 'ONGOING', 'COMPLETED'];
+    }
+
+    function isValidExamSchedule(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.examId, 1, 128) &&
+             isOptionalBoundedString(data, 'examName', 120) &&
+             isBoundedString(data.classId, 1, 128) &&
+             isOptionalBoundedString(data, 'className', 80) &&
+             isBoundedString(data.subjectName, 1, 80) &&
+             isBoundedString(data.examDate, 1, 30) &&
+             isBoundedString(data.examDay, 1, 30) &&
+             isOptionalBoundedString(data, 'timing', 60) &&
+             data.maxMarks is int && data.maxMarks >= 1 && data.maxMarks <= 1000 &&
+             data.passMarks is int && data.passMarks >= 0 && data.passMarks <= data.maxMarks &&
+             isOptionalBoundedString(data, 'syllabus', 1000);
+    }
+
+    function isValidStudentMark(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.examId, 1, 128) &&
+             isOptionalBoundedString(data, 'examName', 120) &&
+             isBoundedString(data.classId, 1, 128) &&
+             isOptionalBoundedString(data, 'className', 80) &&
+             isBoundedString(data.studentId, 1, 128) &&
+             isBoundedString(data.studentName, 1, 120) &&
+             isOptionalBoundedString(data, 'rollNumber', 40) &&
+             isBoundedString(data.scheduleId, 1, 128) &&
+             isBoundedString(data.subjectName, 1, 80) &&
+             data.maxMarks is int && data.maxMarks >= 1 && data.maxMarks <= 1000 &&
+             data.obtainedMarks is number && data.obtainedMarks >= 0 && data.obtainedMarks <= data.maxMarks &&
+             data.absent is bool &&
+             isOptionalBoundedString(data, 'remarks', 200);
+    }
+
+    function isValidTimetableEntry(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             data.dayOfWeek in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] &&
+             data.periodNumber is int && data.periodNumber >= 1 && data.periodNumber <= 12 &&
+             isBoundedString(data.startTime, 1, 30) &&
+             isBoundedString(data.endTime, 1, 30) &&
+             isBoundedString(data.subjectName, 1, 80) &&
+             isOptionalBoundedString(data, 'teacherId', 128) &&
+             isOptionalBoundedString(data, 'teacherName', 100) &&
+             isOptionalBoundedString(data, 'roomNumber', 40);
+    }
+
+    function isValidHomework(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.classId, 1, 128) &&
+             isBoundedString(data.className, 1, 80) &&
+             isBoundedString(data.subjectName, 1, 80) &&
+             isBoundedString(data.title, 1, 150) &&
+             isBoundedString(data.description, 1, 2000) &&
+             isOptionalBoundedString(data, 'assignedDate', 30) &&
+             isBoundedString(data.submissionDate, 1, 30) &&
+             isOptionalBoundedString(data, 'teacherName', 100);
+    }
+
+    function isValidNotice(data, userId) {
+      return data.userId == userId &&
+             isBoundedString(data.title, 1, 150) &&
+             isBoundedString(data.description, 1, 3000) &&
+             isStringList(data.targetClasses, 30) &&
+             isBoundedString(data.publicationDate, 1, 30) &&
+             data.priority in ['NORMAL', 'IMPORTANT', 'URGENT'];
+    }
+
+    // User-Scoped School ERP Collections
+    match /users/{userId} {
+      allow get, delete: if isOwner(userId);
+      allow create, update: if false;
+
+      match /settings/{settingId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(settingId);
+        allow create: if isOwner(userId) && isValidId(settingId) &&
+                         incoming().keys().hasAll(['userId', 'schoolName', 'schoolAddress', 'academicSession', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'schoolName', 'schoolAddress', 'academicSession', 'phone', 'email', 'affiliationNote', 'receiptPrefix', 'authorizedSignatory', 'themeMode', 'logoBase64', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidSettings(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(settingId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidSettings(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['schoolName', 'schoolAddress', 'academicSession', 'phone', 'email', 'affiliationNote', 'receiptPrefix', 'authorizedSignatory', 'themeMode', 'logoBase64', 'updatedAt']);
+      }
+
+      match /classes/{classId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(classId);
+        allow create: if isOwner(userId) && isValidId(classId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'displayOrder', 'monthlyFee', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'section', 'displayOrder', 'monthlyFee', 'classTeacherId', 'classTeacherName', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidSchoolClass(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(classId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidSchoolClass(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'section', 'displayOrder', 'monthlyFee', 'classTeacherId', 'classTeacherName', 'updatedAt']);
+      }
+
+      match /class_subjects/{subjectId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(subjectId);
+        allow create: if isOwner(userId) && isValidId(subjectId) &&
+                         incoming().keys().hasAll(['userId', 'classId', 'className', 'subjectName', 'defaultMaxMarks', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'classId', 'className', 'subjectName', 'teacherId', 'teacherName', 'defaultMaxMarks', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidClassSubject(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(subjectId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidClassSubject(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['classId', 'className', 'subjectName', 'teacherId', 'teacherName', 'defaultMaxMarks', 'updatedAt']);
+      }
+
+      match /teachers/{teacherId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(teacherId);
+        allow create: if isOwner(userId) && isValidId(teacherId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'mobile', 'assignedClasses', 'assignedSubjects', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'qualification', 'mobile', 'address', 'email', 'joiningDate', 'assignedClasses', 'assignedSubjects', 'salary', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidTeacher(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(teacherId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidTeacher(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'qualification', 'mobile', 'address', 'email', 'joiningDate', 'assignedClasses', 'assignedSubjects', 'salary', 'updatedAt']);
+      }
+
+      match /students/{studentId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(studentId);
+        allow create: if isOwner(userId) && isValidId(studentId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'fatherName', 'classId', 'className', 'rollNumber', 'admissionNumber', 'mobile', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'fatherName', 'motherName', 'dob', 'gender', 'classId', 'className', 'rollNumber', 'admissionNumber', 'mobile', 'address', 'admissionDate', 'previousSchool', 'accountNumber', 'photoBase64', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidStudent(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(studentId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidStudent(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'fatherName', 'motherName', 'dob', 'gender', 'classId', 'className', 'rollNumber', 'admissionNumber', 'mobile', 'address', 'admissionDate', 'previousSchool', 'accountNumber', 'photoBase64', 'updatedAt']);
+      }
+
+      match /fee_records/{feeId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(feeId);
+        allow create: if isOwner(userId) && isValidId(feeId) &&
+                         incoming().keys().hasAll(['userId', 'studentId', 'studentName', 'classId', 'className', 'receiptNumber', 'feeMonths', 'totalAmount', 'paidAmount', 'remainingBalance', 'paymentDate', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'studentId', 'studentName', 'classId', 'className', 'rollNumber', 'admissionNumber', 'receiptNumber', 'feeMonths', 'cycleLabel', 'totalAmount', 'paidAmount', 'remainingBalance', 'paymentDate', 'paymentMode', 'status', 'remarks', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidFeeRecord(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(feeId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidFeeRecord(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['studentId', 'studentName', 'classId', 'className', 'rollNumber', 'admissionNumber', 'receiptNumber', 'feeMonths', 'cycleLabel', 'totalAmount', 'paidAmount', 'remainingBalance', 'paymentDate', 'paymentMode', 'status', 'remarks', 'updatedAt']);
+      }
+
+      match /attendance/{attendanceId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(attendanceId);
+        allow create: if isOwner(userId) && isValidId(attendanceId) &&
+                         incoming().keys().hasAll(['userId', 'studentId', 'studentName', 'classId', 'className', 'date', 'monthKey', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'studentId', 'studentName', 'rollNumber', 'classId', 'className', 'date', 'monthKey', 'status', 'remarks', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidAttendance(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(attendanceId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidAttendance(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['studentName', 'rollNumber', 'classId', 'className', 'date', 'monthKey', 'status', 'remarks', 'updatedAt']);
+      }
+
+      match /exams/{examId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(examId);
+        allow create: if isOwner(userId) && isValidId(examId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'classId', 'className', 'academicSession', 'startDate', 'status', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'classId', 'className', 'academicSession', 'startDate', 'endDate', 'status', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidExamination(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(examId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidExamination(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'classId', 'className', 'academicSession', 'startDate', 'endDate', 'status', 'updatedAt']);
+      }
+
+      match /exam_schedules/{scheduleId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(scheduleId);
+        allow create: if isOwner(userId) && isValidId(scheduleId) &&
+                         incoming().keys().hasAll(['userId', 'examId', 'classId', 'subjectName', 'examDate', 'examDay', 'maxMarks', 'passMarks', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'examId', 'examName', 'classId', 'className', 'subjectName', 'examDate', 'examDay', 'timing', 'maxMarks', 'passMarks', 'syllabus', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidExamSchedule(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(scheduleId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidExamSchedule(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['examName', 'classId', 'className', 'subjectName', 'examDate', 'examDay', 'timing', 'maxMarks', 'passMarks', 'syllabus', 'updatedAt']);
+      }
+
+      match /exam_marks/{markId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(markId);
+        allow create: if isOwner(userId) && isValidId(markId) &&
+                         incoming().keys().hasAll(['userId', 'examId', 'classId', 'studentId', 'studentName', 'scheduleId', 'subjectName', 'maxMarks', 'obtainedMarks', 'absent', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'examId', 'examName', 'classId', 'className', 'studentId', 'studentName', 'rollNumber', 'scheduleId', 'subjectName', 'maxMarks', 'obtainedMarks', 'absent', 'remarks', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidStudentMark(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(markId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidStudentMark(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['examName', 'classId', 'className', 'studentName', 'rollNumber', 'subjectName', 'maxMarks', 'obtainedMarks', 'absent', 'remarks', 'updatedAt']);
+      }
+
+      match /timetables/{entryId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(entryId);
+        allow create: if isOwner(userId) && isValidId(entryId) &&
+                         incoming().keys().hasAll(['userId', 'classId', 'className', 'dayOfWeek', 'periodNumber', 'startTime', 'endTime', 'subjectName', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'classId', 'className', 'dayOfWeek', 'periodNumber', 'startTime', 'endTime', 'subjectName', 'teacherId', 'teacherName', 'roomNumber', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidTimetableEntry(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(entryId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidTimetableEntry(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['classId', 'className', 'dayOfWeek', 'periodNumber', 'startTime', 'endTime', 'subjectName', 'teacherId', 'teacherName', 'roomNumber', 'updatedAt']);
+      }
+
+      match /homeworks/{homeworkId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(homeworkId);
+        allow create: if isOwner(userId) && isValidId(homeworkId) &&
+                         incoming().keys().hasAll(['userId', 'classId', 'className', 'subjectName', 'title', 'description', 'submissionDate', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'classId', 'className', 'subjectName', 'title', 'description', 'assignedDate', 'submissionDate', 'teacherName', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidHomework(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(homeworkId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidHomework(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['classId', 'className', 'subjectName', 'title', 'description', 'assignedDate', 'submissionDate', 'teacherName', 'updatedAt']);
+      }
+
+      match /notices/{noticeId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(noticeId);
+        allow create: if isOwner(userId) && isValidId(noticeId) &&
+                         incoming().keys().hasAll(['userId', 'title', 'description', 'targetClasses', 'publicationDate', 'priority', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'title', 'description', 'targetClasses', 'publicationDate', 'priority', 'createdAt', 'updatedAt']) &&
+                         isValidTimestampsCreate(incoming()) &&
+                         isValidNotice(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(noticeId) &&
+                         incoming().userId == existing().userId &&
+                         isValidTimestampsUpdate(incoming()) &&
+                         isValidNotice(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'targetClasses', 'publicationDate', 'priority', 'updatedAt']);
+      }
+    }
+  }
+}

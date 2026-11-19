@@ -1,0 +1,6 @@
+{
+  "name": "ANV School",
+  "description": "ANV Public School Management System (ERP) for Nagaliya Mev, Gajraula — Academic Session 2026–2027",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

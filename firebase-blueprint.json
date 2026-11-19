@@ -1,0 +1,326 @@
+{
+  "entities": {
+    "SchoolSettings": {
+      "title": "SchoolSettings",
+      "description": "School configuration, branding, session, and receipt preferences",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "schoolName": { "type": "string" },
+        "schoolAddress": { "type": "string" },
+        "academicSession": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "affiliationNote": { "type": "string" },
+        "receiptPrefix": { "type": "string" },
+        "authorizedSignatory": { "type": "string" },
+        "themeMode": { "type": "string", "enum": ["SYSTEM", "LIGHT", "DARK"] },
+        "logoBase64": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "schoolName", "schoolAddress", "academicSession", "createdAt", "updatedAt"]
+    },
+    "SchoolClass": {
+      "title": "SchoolClass",
+      "description": "Class definition (Nursery, LKG, UKG, Classes 1-8, or custom classes)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "section": { "type": "string" },
+        "displayOrder": { "type": "integer" },
+        "monthlyFee": { "type": "number" },
+        "classTeacherId": { "type": "string" },
+        "classTeacherName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "displayOrder", "monthlyFee", "createdAt", "updatedAt"]
+    },
+    "ClassSubject": {
+      "title": "ClassSubject",
+      "description": "Dynamic subject mapped to a class and assigned teacher",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "defaultMaxMarks": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "classId", "className", "subjectName", "defaultMaxMarks", "createdAt", "updatedAt"]
+    },
+    "Teacher": {
+      "title": "Teacher",
+      "description": "Faculty profile with assigned classes and subjects",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "qualification": { "type": "string" },
+        "mobile": { "type": "string" },
+        "address": { "type": "string" },
+        "email": { "type": "string" },
+        "joiningDate": { "type": "string" },
+        "assignedClasses": { "type": "array" },
+        "assignedSubjects": { "type": "array" },
+        "salary": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "mobile", "assignedClasses", "assignedSubjects", "createdAt", "updatedAt"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Complete student admission and personal record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "motherName": { "type": "string" },
+        "dob": { "type": "string" },
+        "gender": { "type": "string", "enum": ["Male", "Female", "Other"] },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "admissionNumber": { "type": "string" },
+        "mobile": { "type": "string" },
+        "address": { "type": "string" },
+        "admissionDate": { "type": "string" },
+        "previousSchool": { "type": "string" },
+        "accountNumber": { "type": "string" },
+        "photoBase64": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "fatherName", "classId", "className", "rollNumber", "admissionNumber", "mobile", "createdAt", "updatedAt"]
+    },
+    "FeeRecord": {
+      "title": "FeeRecord",
+      "description": "Fee assessment, 3-month or custom cycle payment, and receipt record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "admissionNumber": { "type": "string" },
+        "receiptNumber": { "type": "string" },
+        "feeMonths": { "type": "array" },
+        "cycleLabel": { "type": "string" },
+        "totalAmount": { "type": "number" },
+        "paidAmount": { "type": "number" },
+        "remainingBalance": { "type": "number" },
+        "paymentDate": { "type": "string" },
+        "paymentMode": { "type": "string" },
+        "status": { "type": "string", "enum": ["PAID", "PARTIAL", "PENDING"] },
+        "remarks": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "studentId", "studentName", "classId", "className", "receiptNumber", "feeMonths", "totalAmount", "paidAmount", "remainingBalance", "paymentDate", "status", "createdAt", "updatedAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily student attendance entry (Present, Absent, Leave)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "date": { "type": "string" },
+        "monthKey": { "type": "string" },
+        "status": { "type": "string", "enum": ["PRESENT", "ABSENT", "LEAVE"] },
+        "remarks": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "studentId", "studentName", "classId", "className", "date", "monthKey", "status", "createdAt", "updatedAt"]
+    },
+    "Examination": {
+      "title": "Examination",
+      "description": "Dynamic school examination container",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "academicSession": { "type": "string" },
+        "startDate": { "type": "string" },
+        "endDate": { "type": "string" },
+        "status": { "type": "string", "enum": ["UPCOMING", "ONGOING", "COMPLETED"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "name", "classId", "className", "academicSession", "startDate", "status", "createdAt", "updatedAt"]
+    },
+    "ExamScheduleEntry": {
+      "title": "ExamScheduleEntry",
+      "description": "Dynamic subject schedule, date, max marks, and custom syllabus for an examination",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "examId": { "type": "string" },
+        "examName": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "examDate": { "type": "string" },
+        "examDay": { "type": "string" },
+        "timing": { "type": "string" },
+        "maxMarks": { "type": "integer" },
+        "passMarks": { "type": "integer" },
+        "syllabus": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "examId", "classId", "subjectName", "examDate", "examDay", "maxMarks", "passMarks", "createdAt", "updatedAt"]
+    },
+    "StudentMark": {
+      "title": "StudentMark",
+      "description": "Dynamic subject marks for a student in an examination",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "examId": { "type": "string" },
+        "examName": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "scheduleId": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "maxMarks": { "type": "integer" },
+        "obtainedMarks": { "type": "number" },
+        "absent": { "type": "boolean" },
+        "remarks": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "examId", "classId", "studentId", "studentName", "scheduleId", "subjectName", "maxMarks", "obtainedMarks", "absent", "createdAt", "updatedAt"]
+    },
+    "TimetableEntry": {
+      "title": "TimetableEntry",
+      "description": "Class-wise weekly period schedule with subject and teacher",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "dayOfWeek": { "type": "string" },
+        "periodNumber": { "type": "integer" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "teacherId": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "roomNumber": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "classId", "className", "dayOfWeek", "periodNumber", "startTime", "endTime", "subjectName", "createdAt", "updatedAt"]
+    },
+    "HomeworkItem": {
+      "title": "HomeworkItem",
+      "description": "Class and subject homework assignment",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "classId": { "type": "string" },
+        "className": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "assignedDate": { "type": "string" },
+        "submissionDate": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "classId", "className", "subjectName", "title", "description", "submissionDate", "createdAt", "updatedAt"]
+    },
+    "NoticeItem": {
+      "title": "NoticeItem",
+      "description": "School announcement or notice targeted at selected classes",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "targetClasses": { "type": "array" },
+        "publicationDate": { "type": "string" },
+        "priority": { "type": "string", "enum": ["NORMAL", "IMPORTANT", "URGENT"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "description", "targetClasses", "publicationDate", "priority", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/settings/{settingId}": {
+      "schema": "SchoolSettings",
+      "description": "Admin school settings and preferences"
+    },
+    "/users/{userId}/classes/{classId}": {
+      "schema": "SchoolClass",
+      "description": "School classes"
+    },
+    "/users/{userId}/class_subjects/{subjectId}": {
+      "schema": "ClassSubject",
+      "description": "Dynamic class-wise subjects"
+    },
+    "/users/{userId}/teachers/{teacherId}": {
+      "schema": "Teacher",
+      "description": "Teacher profiles"
+    },
+    "/users/{userId}/students/{studentId}": {
+      "schema": "Student",
+      "description": "Student records"
+    },
+    "/users/{userId}/fee_records/{feeId}": {
+      "schema": "FeeRecord",
+      "description": "Fee payments and balances"
+    },
+    "/users/{userId}/attendance/{attendanceId}": {
+      "schema": "AttendanceRecord",
+      "description": "Daily attendance records"
+    },
+    "/users/{userId}/exams/{examId}": {
+      "schema": "Examination",
+      "description": "Examinations"
+    },
+    "/users/{userId}/exam_schedules/{scheduleId}": {
+      "schema": "ExamScheduleEntry",
+      "description": "Dynamic exam subject schedules and syllabi"
+    },
+    "/users/{userId}/exam_marks/{markId}": {
+      "schema": "StudentMark",
+      "description": "Student exam marks"
+    },
+    "/users/{userId}/timetables/{entryId}": {
+      "schema": "TimetableEntry",
+      "description": "Class timetable entries"
+    },
+    "/users/{userId}/homeworks/{homeworkId}": {
+      "schema": "HomeworkItem",
+      "description": "Homework assignments"
+    },
+    "/users/{userId}/notices/{noticeId}": {
+      "schema": "NoticeItem",
+      "description": "School notices and announcements"
+    }
+  }
+}
